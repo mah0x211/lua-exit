@@ -23,6 +23,7 @@
 // lua
 #include <lauxlib.h>
 #include <lua.h>
+#include <luaconf.h>
 
 static lua_State *gL = NULL;
 
@@ -47,6 +48,20 @@ static int exit_lua(lua_State *L)
     default:
         code = luaL_checkinteger(L, 1);
     }
+
+#if defined(LUA_LJDIR) || LUA_VERSION_NUM >= 502
+    lua_getglobal(L, "os");
+    if (lua_istable(L, -1)) {
+        lua_pushliteral(L, "exit");
+        lua_rawget(L, -2);
+        if (lua_isfunction(L, -1)) {
+            lua_pushinteger(L, code);
+            lua_pushboolean(L, 1);
+            lua_call(L, 2, 0);
+            return 0;
+        }
+    }
+#endif
 
     gL = L;
     atexit(close_lua);
