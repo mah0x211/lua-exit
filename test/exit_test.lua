@@ -2,7 +2,7 @@ local assert = require('assert')
 local fork = require('fork')
 local exit = require('exit')
 local gcfn = require('gcfn')
-local pipe = require('pipe')
+local pipe = require('os.pipe')
 local reader, writer = assert(pipe())
 
 -- test that exit with status 0 if no argument
