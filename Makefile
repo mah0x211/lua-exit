@@ -1,6 +1,7 @@
 TARGET=$(PACKAGE).$(LIB_EXTENSION)
 SRCS=$(wildcard $(SRCDIR)/*.c)
 OBJS=$(SRCS:.c=.o)
+GCDAS=$(OBJS:.o=.gcda)
 INSTALL?=install
 
 ifdef EXIT_COVERAGE
@@ -20,5 +21,5 @@ $(TARGET): $(OBJS)
 install:
 	$(INSTALL) -d $(INST_LIBDIR)
 	$(INSTALL) $(TARGET) $(INST_LIBDIR)
-	rm -f $(OBJS) $(TARGET)
+	rm -f $(OBJS) $(TARGET) $(GCDAS)
 
