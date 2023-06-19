@@ -25,12 +25,44 @@
 #include <lua.h>
 #include <luaconf.h>
 
-static lua_State *gL = NULL;
+#if defined(LUA_LJDIR)
 
-static void close_lua(void)
+static void exit_hook(lua_State *L, lua_Debug *ar)
 {
-    lua_close(gL);
+    (void)ar;
+    lua_pushstring(L, "force exit");
+    lua_error(L);
 }
+
+static void do_exit(lua_State *L, int code)
+{
+    (void)code;
+    lua_sethook(L, exit_hook,
+                LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT, 0);
+}
+
+#else
+
+static int gExitStatus = 0;
+
+static void exit_hook(lua_State *L, lua_Debug *ar)
+{
+    if (!lua_getstack(L, 1, ar)) {
+        lua_gc(L, LUA_GCCOLLECT, 0);
+        exit(gExitStatus);
+    }
+    lua_pushstring(L, "force exit");
+    lua_error(L);
+}
+
+static void do_exit(lua_State *L, int code)
+{
+    gExitStatus = code;
+    lua_sethook(L, exit_hook,
+                LUA_MASKCALL | LUA_MASKRET | LUA_MASKLINE | LUA_MASKCOUNT, 0);
+}
+
+#endif
 
 static int exit_lua(lua_State *L)
 {
@@ -63,9 +95,7 @@ static int exit_lua(lua_State *L)
     }
 #endif
 
-    gL = L;
-    atexit(close_lua);
-    exit(code);
+    do_exit(L, code);
     return 0;
 }
 

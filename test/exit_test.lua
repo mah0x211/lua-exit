@@ -2,7 +2,7 @@ local assert = require('assert')
 local fork = require('fork')
 local exit = require('exit')
 local gcfn = require('gcfn')
-local pipe = require('pipe')
+local pipe = require('os.pipe')
 local reader, writer = assert(pipe())
 
 -- test that exit with status 0 if no argument
@@ -48,3 +48,18 @@ if p:is_child() then
 end
 res = p:wait()
 assert.equal(res.exit, 255)
+
+-- test that use hook function to exit
+p = assert(fork())
+if p:is_child() then
+    _G.os.exit = 'exit'
+    local _ = gcfn(function()
+        writer:write('exit on gc')
+    end)
+    exit(123)
+end
+res = p:wait()
+-- NOTE: LuaJIT cannot return the specified exit code because exit cannot be
+-- performed after GC.
+assert.is_int(res.exit)
+assert.equal(reader:read(), 'exit on gc')
