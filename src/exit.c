@@ -19,11 +19,10 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
-#include <stdlib.h>
 // lua
 #include <lauxlib.h>
-#include <lua.h>
-#include <luaconf.h>
+// system
+#include <stdlib.h>
 
 #if defined(LUA_LJDIR)
 
