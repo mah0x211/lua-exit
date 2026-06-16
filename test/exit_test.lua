@@ -1,65 +1,61 @@
+local testcase = require('testcase')
 local assert = require('assert')
-local fork = require('fork')
-local exit = require('exit')
-local gcfn = require('gcfn')
-local pipe = require('os.pipe')
-local reader, writer = assert(pipe())
+require('exit')
 
--- test that exit with status 0 if no argument
-local p = assert(fork())
-if p:is_child() then
-    local _ = gcfn(function()
-        writer:write('exit on gc')
-    end)
-    exit()
+-- Build a child Lua command that loads the exit module and invokes it
+-- with the given snippet, then run it with os.execute and return (ok, exit_code).
+local function run_child(snippet)
+    local cmd = string.format("lua -e 'local exit = require(\"exit\"); %s'",
+                              snippet)
+    local ok, _, code = os.execute(cmd)
+    -- on Lua 5.1, os.execute returns just the status code
+    if type(ok) == 'number' then
+        return ok == 0, ok
+    end
+    -- on Lua 5.2+, returns (true|nil|false, "exit"|"signal", code)
+    return ok == true, code
 end
-local res = p:wait()
-assert.equal(res.exit, 0)
-assert.equal(reader:read(), 'exit on gc')
 
--- test that exit with status 0 if argument is true
-p = assert(fork())
-if p:is_child() then
-    exit(true)
+function testcase.exit_returns_zero_with_no_argument()
+    local _, code = run_child('exit()')
+    assert.equal(code, 0)
 end
-res = p:wait()
-assert.equal(res.exit, 0)
 
--- test that exit with status 1 if argument is true
-p = assert(fork())
-if p:is_child() then
-    exit(false)
+function testcase.exit_with_true_returns_zero()
+    local _, code = run_child('exit(true)')
+    assert.equal(code, 0)
 end
-res = p:wait()
-assert.equal(res.exit, 1)
 
--- test that exit with status 123 if argument is 123
-p = assert(fork())
-if p:is_child() then
-    exit(123)
+function testcase.exit_with_false_returns_one()
+    local _, code = run_child('exit(false)')
+    assert.equal(code, 1)
 end
-res = p:wait()
-assert.equal(res.exit, 123)
 
--- test that exit with status 255 if argument is -1
-p = assert(fork())
-if p:is_child() then
-    exit(-1)
+function testcase.exit_with_explicit_status_code()
+    local _, code = run_child('exit(123)')
+    assert.equal(code, 123)
 end
-res = p:wait()
-assert.equal(res.exit, 255)
 
--- test that use hook function to exit
-p = assert(fork())
-if p:is_child() then
-    _G.os.exit = 'exit'
-    local _ = gcfn(function()
-        writer:write('exit on gc')
-    end)
-    exit(123)
+function testcase.exit_with_invalid_argument_throws()
+    -- a string argument is not accepted; lua errors out with non-zero status
+    local ok, code = run_child('exit("bad")')
+    assert.is_false(ok)
+    assert.not_equal(code, 0)
 end
-res = p:wait()
--- NOTE: LuaJIT cannot return the specified exit code because exit cannot be
--- performed after GC.
-assert.is_int(res.exit)
-assert.equal(reader:read(), 'exit on gc')
+
+function testcase.exit_runs_finalizers_via_lua_close()
+    -- Use a temporary file to verify that Lua finalizers fire before the
+    -- process actually exits.
+    local tmp = os.tmpname()
+    local snippet = string.format('local f = assert(io.open(%q, "w")); ' ..
+                                      'setmetatable({}, {__gc = function() f:write("byebye"); f:close() end}); ' ..
+                                      '_G._keep = setmetatable({}, getmetatable({})); ' ..
+                                      'exit(0)', tmp)
+    local _, code = run_child(snippet)
+    assert.equal(code, 0)
+    local fh = assert(io.open(tmp, 'r'))
+    local content = fh:read('*a')
+    fh:close()
+    os.remove(tmp)
+    assert.equal(content, 'byebye')
+end

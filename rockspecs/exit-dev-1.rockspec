@@ -1,3 +1,4 @@
+rockspec_format = "3.0"
 package = "exit"
 version = "dev-1"
 source = {
@@ -12,22 +13,24 @@ description = {
 dependencies = {
     "lua >= 5.1",
 }
+build_dependencies = {
+    "luarocks-build-hooks >= 0.8.0",
+}
 build = {
-    type = "make",
-    build_variables = {
-        PACKAGE = "exit",
-        SRCDIR = "src",
-        CFLAGS = "$(CFLAGS)",
-        WARNINGS = "-Wall -Wno-trigraphs -Wmissing-field-initializers -Wreturn-type -Wmissing-braces -Wparentheses -Wno-switch -Wunused-function -Wunused-label -Wunused-parameter -Wunused-variable -Wunused-value -Wuninitialized -Wunknown-pragmas -Wshadow -Wsign-compare",
-        CPPFLAGS = "-I$(LUA_INCDIR)",
-        LDFLAGS = "$(LIBFLAG)",
-        LIB_EXTENSION = "$(LIB_EXTENSION)",
-        EXIT_COVERAGE = "$(EXIT_COVERAGE)",
+    type = "hooks",
+    before_build = "$(extra-vars)",
+    extra_variables = {
+        CFLAGS = "-Wall -Wno-trigraphs -Wmissing-field-initializers -Wreturn-type -Wmissing-braces -Wparentheses -Wno-switch -Wunused-function -Wunused-label -Wunused-parameter -Wunused-variable -Wunused-value -Wuninitialized -Wunknown-pragmas -Wshadow -Wsign-compare",
     },
-    install_variables = {
-        PACKAGE = "exit",
-        SRCDIR = "src",
-        INST_LIBDIR = "$(LIBDIR)",
-        LIB_EXTENSION = "$(LIB_EXTENSION)",
+    conditional_variables = {
+        EXIT_COVERAGE = {
+            CFLAGS = "--coverage",
+            LIBFLAG = "--coverage",
+        },
+    },
+    modules = {
+        exit = {
+            sources = "src/exit.c",
+        },
     },
 }
